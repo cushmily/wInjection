@@ -18,7 +18,10 @@ namespace wLib.Injection
                 for (var i = 0; i < _modules.Length; i++)
                 {
                     var module = _modules[i];
+                    if (module == null) { continue; }
+
                     module.SetContainer(_container);
+                    module.ModuleBindings();
                 }
             }
 
@@ -34,6 +37,21 @@ namespace wLib.Injection
             sw.Stop();
             var ms = sw.ElapsedMilliseconds;
             Debug.LogFormat("Inject scene game object finised. cost : {0} ms. ", ms);
+        }
+
+        public void InjectGameObject(GameObject gameObject)
+        {
+            var monos = gameObject.GetComponents<MonoBehaviour>();
+            for (var i = 0; i < monos.Length; i++)
+            {
+                var mono = monos[i];
+                Inject(mono);
+            }
+        }
+
+        public void Inject(object obj)
+        {
+            _container.Inject(obj);
         }
 
         public T Create<T>()

@@ -9,23 +9,23 @@ namespace wLib.Injection
     {
         public readonly Dictionary<Type, Type> Types = new Dictionary<Type, Type>();
 
-        private readonly Dictionary<Type, List<MemberInfo>> _memberCaches = new Dictionary<Type, List<MemberInfo>>();
+        public readonly Dictionary<Type, List<MemberInfo>> _memberCaches = new Dictionary<Type, List<MemberInfo>>();
 
         private readonly Dictionary<Type, object> _singletons = new Dictionary<Type, object>();
 
-        private static IEnumerable<Type> _modules;
+        private static IEnumerable<Type> modules;
 
         #region Helper
 
         public DiContainer()
         {
-            if (_modules == null)
+            if (modules == null)
             {
-                _modules = AppDomain.CurrentDomain.GetAssemblies().SelectMany(x => x.GetTypes())
+                modules = AppDomain.CurrentDomain.GetAssemblies().SelectMany(x => x.GetTypes())
                     .Where(x => typeof(IModule).IsAssignableFrom(x) && !x.IsAbstract);
             }
 
-            foreach (var moduleType in _modules)
+            foreach (var moduleType in modules)
             {
                 var construtor = moduleType.GetConstructor(new[] {typeof(DiContainer)});
                 if (construtor != null)
@@ -35,19 +35,71 @@ namespace wLib.Injection
                 }
             }
 
-            Register<DiContainer, DiContainer>(this);
+            Bind<DiContainer, DiContainer>(this);
         }
 
-        public void Register<TContract, TImplementation>() where TImplementation : TContract
+        #region Generic Binding
+
+        public IBinderInfo Bind<TImplementation>()
         {
-            Types.Add(typeof(TContract), typeof(TImplementation));
+            return Bind<TImplementation, TImplementation>();
         }
 
-        public void Register<TContract, TImplementation>(TContract instance) where TImplementation : TContract
+        public IBinderInfo Bind<TImplementation>(TImplementation instance)
         {
-            Types.Add(typeof(TContract), typeof(TImplementation));
-            _singletons.Add(typeof(TContract), instance);
+            return Bind<TImplementation, TImplementation>(instance);
         }
+
+        public IBinderInfo Bind<TContract, TImplementation>() where TImplementation : TContract
+        {
+            var binder = new BinderInfo(this, typeof(TContract));
+            CheckBindingCache(typeof(TContract));
+            Types.Add(typeof(TContract), typeof(TImplementation));
+
+            return binder;
+        }
+
+        public IBinderInfo Bind<TContract, TImplementation>(TContract instance)
+            where TImplementation : TContract
+        {
+            var binder = new BinderInfo(this, typeof(TContract));
+            CheckBindingCache(typeof(TContract));
+            Types.Add(typeof(TContract), typeof(TImplementation));
+            AddSingleton(typeof(TContract), instance);
+
+            return binder;
+        }
+
+        #endregion
+
+        #region Non Generic
+
+        public IBinderInfo Bind(Type contract)
+        {
+            var binder = new BinderInfo(this, contract);
+            CheckBindingCache(contract);
+            Types.Add(contract, contract);
+            return binder;
+        }
+
+        public IBinderInfo Bind(Type contract, Type implementation)
+        {
+            var binder = new BinderInfo(this, contract);
+            CheckBindingCache(contract);
+            Types.Add(contract, implementation);
+            return binder;
+        }
+
+        public IBinderInfo Bind(Type contract, Type implementation, object instance)
+        {
+            var binder = new BinderInfo(this, contract);
+            CheckBindingCache(contract);
+            Types.Add(contract, implementation);
+            AddSingleton(contract, instance);
+            return binder;
+        }
+
+        #endregion
 
         public T Resolve<T>()
         {
@@ -105,12 +157,33 @@ namespace wLib.Injection
 
                     injectMembers.Add(memberInfo);
                 }
+
+                _memberCaches.Add(objType, injectMembers);
             }
         }
 
         #endregion
 
+        #region Helpers
+
+        public void AddSingleton(Type type, object instance)
+        {
+            if (_singletons.ContainsKey(type))
+            {
+                throw new ApplicationException(string.Format("Sigleton of type: {0} already registered.", type));
+            }
+
+            _singletons[type] = instance;
+        }
+
+        #endregion
+
         #region Internal
+
+        private void CheckBindingCache(Type bindedType)
+        {
+            if (Types.ContainsKey(bindedType)) { throw new ApplicationException($"{bindedType} already binded."); }
+        }
 
         private T InternalResolve<T>()
         {
