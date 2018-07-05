@@ -1,9 +1,17 @@
-﻿namespace wLib.Injection
+﻿using System;
+
+namespace wLib.Injection
 {
     public interface IContext
     {
-        T Create<T>();
+        object Create(Type type);
+
+        T Create<T>() where T : class;
         
+        object Resolve(Type type);
+
+        T Resolve<T>() where T : class;
+
         //TODO Add hirerachy contexts
 //        IContext Parent { get; }
     }

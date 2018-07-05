@@ -101,16 +101,14 @@ namespace wLib.Injection
 
         #endregion
 
-        public T Resolve<T>()
+        public T Resolve<T>() where T : class
         {
-            var instance = InternalResolve<T>();
-            Inject(instance);
-            return instance;
+            return Resolve(typeof(T)) as T;
         }
 
-        public object Resolve(Type contract)
+        public object Resolve(Type contract, bool createMode = false)
         {
-            var instance = InternalResolve(contract);
+            var instance = InternalResolve(contract, createMode);
             Inject(instance);
             return instance;
         }
@@ -127,11 +125,13 @@ namespace wLib.Injection
 
                 foreach (var memberInfo in memebers)
                 {
+                    object instance = null;
                     switch (memberInfo.MemberType)
                     {
                         case MemberTypes.Field:
                             var fieldInfo = memberInfo as FieldInfo;
-                            fieldInfo.SetValue(target, InternalResolve(fieldInfo.FieldType));
+                            instance = InternalResolve(fieldInfo.FieldType);
+                            fieldInfo.SetValue(target, instance);
                             break;
                         case MemberTypes.Method:
                             var methodInfo = memberInfo as MethodInfo;
@@ -149,7 +149,8 @@ namespace wLib.Injection
                             var propertyInfo = memberInfo as PropertyInfo;
                             if (propertyInfo.SetMethod != null)
                             {
-                                propertyInfo.SetValue(target, InternalResolve(propertyInfo.PropertyType));
+                                instance = InternalResolve(propertyInfo.PropertyType);
+                                propertyInfo.SetValue(target, instance);
                             }
 
                             break;
@@ -185,17 +186,18 @@ namespace wLib.Injection
             if (Types.ContainsKey(bindedType)) { throw new ApplicationException($"{bindedType} already binded."); }
         }
 
-        private T InternalResolve<T>()
+        private T InternalResolve<T>(bool createMode = false)
         {
-            return (T) InternalResolve(typeof(T));
+            return (T) InternalResolve(typeof(T), createMode);
         }
 
-        private object InternalResolve(Type contract)
+        private object InternalResolve(Type contract, bool createMode = false)
         {
             Type implementation;
             if (!Types.TryGetValue(contract, out implementation))
             {
-                throw new ApplicationException("Can't resolve a unregistered type: " + contract);
+                if (createMode) { implementation = contract; }
+                else { throw new ApplicationException("Can't resolve a unregistered type: " + contract); }
             }
 
             object instance;
@@ -204,7 +206,12 @@ namespace wLib.Injection
                 var constructor = implementation.GetConstructors()[0];
                 var parameterInfos = constructor.GetParameters();
 
-                if (parameterInfos.Length == 0) { return Activator.CreateInstance(implementation); }
+                if (parameterInfos.Length == 0)
+                {
+                    instance = Activator.CreateInstance(implementation);
+                    _singletons.Add(contract, instance);
+                    return instance;
+                }
 
                 var parameters = new List<object>(parameterInfos.Length);
                 foreach (var parameterInfo in parameterInfos)

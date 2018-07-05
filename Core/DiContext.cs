@@ -1,29 +1,29 @@
-﻿namespace wLib.Injection
+﻿using System;
+
+namespace wLib.Injection
 {
     public class DiContext : IContext
     {
         private readonly DiContainer _container = new DiContainer();
 
-        public T Create<T>()
+        public object Create(Type type)
         {
-            return _container.Resolve<T>();
+            return _container.Resolve(type, true);
         }
 
-//        private static readonly Dictionary<string, DiContainer> _caches = new Dictionary<string, DiContainer>();
+        public T Create<T>() where T : class
+        {
+            return Create(typeof(T)) as T;
+        }
 
-//        public static DiContainer Create(string id)
-//        {
-//            var container = new DiContainer();
-//            _caches.Add(id, container);
-//            return container;
-//        }
-//
-//        public static DiContainer Get(string id)
-//        {
-//            DiContainer result;
-//            if (!_caches.TryGetValue(id, out result)) { Debug.LogFormat("DiContainer with id [{0}] not found."); }
-//
-//            return result;
-//        }
+        public object Resolve(Type type)
+        {
+            return _container.Resolve(type);
+        }
+
+        public T Resolve<T>() where T : class
+        {
+            return Resolve(typeof(T)) as T;
+        }
     }
 }
