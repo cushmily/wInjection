@@ -48,6 +48,8 @@ namespace wLib.Injection
             for (var i = 0; i < monos.Length; i++)
             {
                 var mono = monos[i];
+                if (mono == null) { continue; }
+
                 Inject(mono);
             }
         }
