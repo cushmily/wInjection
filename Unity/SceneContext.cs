@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -27,11 +28,13 @@ namespace wLib.Injection
 
             var sw = new Stopwatch();
             sw.Start();
-            var monos = Resources.FindObjectsOfTypeAll<MonoBehaviour>();
-            for (var i = 0; i < monos.Length; i++)
+
+            foreach (var go in (GameObject[]) Resources.FindObjectsOfTypeAll(typeof(GameObject)))
             {
-                var mono = monos[i];
-                _container.Inject(mono);
+                if (go.hideFlags == HideFlags.NotEditable || go.hideFlags == HideFlags.HideAndDontSave)
+                    continue;
+
+                InjectGameObject(go);
             }
 
             sw.Stop();
@@ -39,12 +42,14 @@ namespace wLib.Injection
             Debug.LogFormat("Inject scene game object finised. cost : {0} ms. ", ms);
         }
 
-        public void InjectGameObject(GameObject gameObject)
+        public void InjectGameObject(GameObject targetGo)
         {
-            var monos = gameObject.GetComponents<MonoBehaviour>();
+            var monos = targetGo.GetComponents<MonoBehaviour>();
             for (var i = 0; i < monos.Length; i++)
             {
                 var mono = monos[i];
+                if (mono == null) { continue; }
+
                 Inject(mono);
             }
         }
@@ -54,9 +59,24 @@ namespace wLib.Injection
             _container.Inject(obj);
         }
 
-        public T Create<T>()
+        public object Create(Type type)
         {
-            return _container.Resolve<T>();
+            return _container.Resolve(type, true);
+        }
+
+        public T Create<T>() where T : class
+        {
+            return Create(typeof(T)) as T;
+        }
+
+        public object Resolve(Type type)
+        {
+            return _container.Resolve(type);
+        }
+
+        public T Resolve<T>() where T : class
+        {
+            return Resolve(typeof(T)) as T;
         }
     }
 }
