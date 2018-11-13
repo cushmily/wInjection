@@ -31,7 +31,7 @@ namespace wLib.Injection
                 if (construtor != null)
                 {
                     var moduleInstance = construtor.Invoke(new object[] {this}) as IModule;
-                    if (moduleInstance != null) { moduleInstance.ModuleBindings(); }
+                    moduleInstance?.ModuleBindings();
                 }
             }
 
