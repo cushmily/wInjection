@@ -27,10 +27,10 @@ namespace wLib.Injection
 
             foreach (var moduleType in modules)
             {
-                var construtor = moduleType.GetConstructor(new[] {typeof(DiContainer)});
-                if (construtor != null)
+                var constructor = moduleType.GetConstructor(new[] {typeof(DiContainer)});
+                if (constructor != null)
                 {
-                    var moduleInstance = construtor.Invoke(new object[] {this}) as IModule;
+                    var moduleInstance = constructor.Invoke(new object[] {this}) as IModule;
                     moduleInstance?.ModuleBindings();
                 }
             }
@@ -120,46 +120,49 @@ namespace wLib.Injection
             if (!_memberCaches.TryGetValue(objType, out injectMembers))
             {
                 injectMembers = new List<MemberInfo>();
-                var memebers = objType.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                var members = objType.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                     .Where(x => x.CustomAttributes.Any(a => a.AttributeType == typeof(Inject)));
 
-                foreach (var memberInfo in memebers)
-                {
-                    object instance = null;
-                    switch (memberInfo.MemberType)
-                    {
-                        case MemberTypes.Field:
-                            var fieldInfo = memberInfo as FieldInfo;
-                            instance = InternalResolve(fieldInfo.FieldType);
-                            fieldInfo.SetValue(target, instance);
-                            break;
-                        case MemberTypes.Method:
-                            var methodInfo = memberInfo as MethodInfo;
-                            var parameters = methodInfo.GetParameters();
-                            var invokeParameter = new object[parameters.Length];
-                            for (var i = 0; i < parameters.Length; i++)
-                            {
-                                var parameter = parameters[i];
-                                invokeParameter[i] = InternalResolve(parameter.ParameterType);
-                            }
-
-                            methodInfo.Invoke(target, invokeParameter);
-                            break;
-                        case MemberTypes.Property:
-                            var propertyInfo = memberInfo as PropertyInfo;
-                            if (propertyInfo.SetMethod != null)
-                            {
-                                instance = InternalResolve(propertyInfo.PropertyType);
-                                propertyInfo.SetValue(target, instance);
-                            }
-
-                            break;
-                    }
-
-                    injectMembers.Add(memberInfo);
-                }
+                var memberInfos = members as MemberInfo[] ?? members.ToArray();
+                injectMembers.AddRange(memberInfos);
 
                 _memberCaches.Add(objType, injectMembers);
+            }
+
+            var memberInfoCaches = _memberCaches[objType];
+
+            foreach (var memberInfo in memberInfoCaches)
+            {
+                object instance = null;
+                switch (memberInfo.MemberType)
+                {
+                    case MemberTypes.Field:
+                        var fieldInfo = memberInfo as FieldInfo;
+                        instance = InternalResolve(fieldInfo.FieldType);
+                        fieldInfo.SetValue(target, instance);
+                        break;
+                    case MemberTypes.Method:
+                        var methodInfo = memberInfo as MethodInfo;
+                        var parameters = methodInfo.GetParameters();
+                        var invokeParameter = new object[parameters.Length];
+                        for (var i = 0; i < parameters.Length; i++)
+                        {
+                            var parameter = parameters[i];
+                            invokeParameter[i] = InternalResolve(parameter.ParameterType);
+                        }
+
+                        methodInfo.Invoke(target, invokeParameter);
+                        break;
+                    case MemberTypes.Property:
+                        var propertyInfo = memberInfo as PropertyInfo;
+                        if (propertyInfo.SetMethod != null)
+                        {
+                            instance = InternalResolve(propertyInfo.PropertyType);
+                            propertyInfo.SetValue(target, instance);
+                        }
+
+                        break;
+                }
             }
         }
 
@@ -171,7 +174,7 @@ namespace wLib.Injection
         {
             if (_singletons.ContainsKey(type))
             {
-                throw new ApplicationException(string.Format("Sigleton of type: {0} already registered.", type));
+                throw new ApplicationException($"Singleton of type: {type} already registered.");
             }
 
             _singletons[type] = instance;
@@ -181,9 +184,9 @@ namespace wLib.Injection
 
         #region Internal
 
-        private void CheckBindingCache(Type bindedType)
+        private void CheckBindingCache(Type boundType)
         {
-            if (Types.ContainsKey(bindedType)) { throw new ApplicationException($"{bindedType} already binded."); }
+            if (Types.ContainsKey(boundType)) { throw new ApplicationException($"{boundType} already bound."); }
         }
 
         private T InternalResolve<T>(bool createMode = false)
