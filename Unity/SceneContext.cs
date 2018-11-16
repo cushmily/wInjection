@@ -31,15 +31,15 @@ namespace wLib.Injection
 
             foreach (var go in (GameObject[]) Resources.FindObjectsOfTypeAll(typeof(GameObject)))
             {
-                if (go.hideFlags == HideFlags.NotEditable || go.hideFlags == HideFlags.HideAndDontSave)
-                    continue;
+                if (string.IsNullOrEmpty(go.scene.name) || go.hideFlags == HideFlags.NotEditable ||
+                    go.hideFlags == HideFlags.HideAndDontSave) { continue; }
 
                 InjectGameObject(go);
             }
 
             sw.Stop();
             var ms = sw.ElapsedMilliseconds;
-            Debug.LogFormat("Inject scene game object finised. cost : {0} ms. ", ms);
+            Debug.LogFormat("Inject scene game object finished. cost : {0} ms. ", ms);
         }
 
         public void InjectGameObject(GameObject targetGo)
