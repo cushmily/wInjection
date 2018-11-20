@@ -13,6 +13,8 @@ namespace wLib.Injection
 
         private readonly Dictionary<Type, object> _singletons = new Dictionary<Type, object>();
 
+        private readonly List<Type> _transientTypes = new List<Type>();
+
         private static IEnumerable<Type> modules;
 
         #region Helper
@@ -40,29 +42,29 @@ namespace wLib.Injection
 
         #region Generic Binding
 
-        public IBinderInfo Bind<TImplementation>()
+        public IBinderInfo<TImplementation> Bind<TImplementation>()
         {
             return Bind<TImplementation, TImplementation>();
         }
 
-        public IBinderInfo Bind<TImplementation>(TImplementation instance)
+        public IBinderInfo<TImplementation> Bind<TImplementation>(TImplementation instance)
         {
             return Bind<TImplementation, TImplementation>(instance);
         }
 
-        public IBinderInfo Bind<TContract, TImplementation>() where TImplementation : TContract
+        public IBinderInfo<TImplementation> Bind<TContract, TImplementation>() where TImplementation : TContract
         {
-            var binder = new BinderInfo(this, typeof(TContract));
+            var binder = new BinderInfo<TImplementation>(this, typeof(TContract));
             CheckBindingCache(typeof(TContract));
             Types.Add(typeof(TContract), typeof(TImplementation));
 
             return binder;
         }
 
-        public IBinderInfo Bind<TContract, TImplementation>(TContract instance)
+        public IBinderInfo<TImplementation> Bind<TContract, TImplementation>(TContract instance)
             where TImplementation : TContract
         {
-            var binder = new BinderInfo(this, typeof(TContract));
+            var binder = new BinderInfo<TImplementation>(this, typeof(TContract));
             CheckBindingCache(typeof(TContract));
             Types.Add(typeof(TContract), typeof(TImplementation));
             AddSingleton(typeof(TContract), instance);
@@ -116,17 +118,18 @@ namespace wLib.Injection
         public void Inject(object target)
         {
             var objType = target.GetType();
-            List<MemberInfo> injectMembers;
-            if (!_memberCaches.TryGetValue(objType, out injectMembers))
+            List<MemberInfo> injectedMembers;
+
+            if (!_memberCaches.TryGetValue(objType, out injectedMembers))
             {
-                injectMembers = new List<MemberInfo>();
+                injectedMembers = new List<MemberInfo>();
                 var members = objType.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                     .Where(x => x.CustomAttributes.Any(a => a.AttributeType == typeof(Inject)));
 
                 var memberInfos = members as MemberInfo[] ?? members.ToArray();
-                injectMembers.AddRange(memberInfos);
+                injectedMembers.AddRange(memberInfos);
 
-                _memberCaches.Add(objType, injectMembers);
+                _memberCaches.Add(objType, injectedMembers);
             }
 
             var memberInfoCaches = _memberCaches[objType];
@@ -170,6 +173,11 @@ namespace wLib.Injection
 
         #region Helpers
 
+        public bool ContainsSingleton(Type type)
+        {
+            return _singletons.ContainsKey(type);
+        }
+
         public void AddSingleton(Type type, object instance)
         {
             if (_singletons.ContainsKey(type))
@@ -178,6 +186,13 @@ namespace wLib.Injection
             }
 
             _singletons[type] = instance;
+        }
+
+        public void AddTransient(Type type)
+        {
+            if (_singletons.ContainsKey(type)) { _singletons.Remove(type); }
+
+            if (!_transientTypes.Contains(type)) { _transientTypes.Add(type); }
         }
 
         #endregion
@@ -204,7 +219,7 @@ namespace wLib.Injection
             }
 
             object instance;
-            if (!_singletons.TryGetValue(contract, out instance))
+            if (_transientTypes.Contains(contract) || !_singletons.TryGetValue(contract, out instance))
             {
                 var constructor = implementation.GetConstructors()[0];
                 var parameterInfos = constructor.GetParameters();

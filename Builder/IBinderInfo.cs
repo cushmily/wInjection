@@ -13,6 +13,10 @@ namespace wLib.Injection
         IBinderInfo FromMethod(Func<object> getter);
 
         void NonLazy();
+        
+        void AsSingleton();
+
+        void AsTransient();
     }
 
     public interface IBinderInfo<in TContract> : IBinderInfo

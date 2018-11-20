@@ -29,6 +29,19 @@ namespace wLib.Injection
         {
             Container.Resolve(TargetType);
         }
+
+        public void AsSingleton()
+        {
+            if (!Container.ContainsSingleton(TargetType))
+            {
+                Container.AddSingleton(TargetType, Container.Resolve(TargetType));
+            }
+        }
+
+        public void AsTransient()
+        {
+            if (Container.ContainsSingleton(TargetType)) { Container.AddTransient(TargetType); }
+        }
     }
 
     public class BinderInfo<TContract> : BinderInfo, IBinderInfo<TContract>
