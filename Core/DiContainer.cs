@@ -228,6 +228,7 @@ namespace wLib.Injection
                 {
                     instance = Activator.CreateInstance(implementation);
                     _singletons.Add(contract, instance);
+                    Inject(instance);
                     return instance;
                 }
 
