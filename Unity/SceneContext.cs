@@ -12,7 +12,7 @@ namespace wLib.Injection
         [SerializeField]
         private MonoModule[] _modules;
 
-        private void Awake()
+        protected virtual void Awake()
         {
             if (_modules != null)
             {
