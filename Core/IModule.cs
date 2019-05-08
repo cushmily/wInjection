@@ -1,9 +1,11 @@
-﻿namespace wLib.Injection
+﻿using System;
+
+namespace wLib.Injection
 {
-    public interface IModule
+    public interface IModule : IDisposable
     {
-        DiContainer Container { get; }
-        
-        void ModuleBindings();
+        IDependencyContainer Container { get; }
+
+        void RegisterBindings();
     }
 }

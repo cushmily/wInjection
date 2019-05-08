@@ -4,11 +4,18 @@ namespace wLib.Injection
 {
     public class DiContext : IContext
     {
-        private readonly DiContainer _container = new DiContainer();
+        public IDependencyContainer Container { get; }
+
+        public DiContext()
+        {
+            Container = new DependencyContainer();
+
+            if (Context.GlobalContext == null) { Context.SetCurrentContext(this); }
+        }
 
         public object Create(Type type)
         {
-            return _container.Resolve(type, true);
+            return Container.Resolve(type, true);
         }
 
         public T Create<T>() where T : class
@@ -18,7 +25,7 @@ namespace wLib.Injection
 
         public object Resolve(Type type)
         {
-            return _container.Resolve(type);
+            return Container.Resolve(type);
         }
 
         public T Resolve<T>() where T : class

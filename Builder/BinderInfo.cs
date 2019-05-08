@@ -4,10 +4,10 @@ namespace wLib.Injection
 {
     public class BinderInfo : IBinderInfo
     {
-        public DiContainer Container { get; }
+        public IDependencyContainer Container { get; }
         public Type TargetType { get; }
 
-        public BinderInfo(DiContainer container, Type targetType)
+        public BinderInfo(IDependencyContainer container, Type targetType)
         {
             Container = container;
             TargetType = targetType;
@@ -46,7 +46,7 @@ namespace wLib.Injection
 
     public class BinderInfo<TContract> : BinderInfo, IBinderInfo<TContract>
     {
-        public BinderInfo(DiContainer container, Type targetType) : base(container, targetType) { }
+        public BinderInfo(IDependencyContainer container, Type targetType) : base(container, targetType) { }
 
         public IBinderInfo<TContract> FromInstance(TContract instance)
         {

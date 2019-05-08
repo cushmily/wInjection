@@ -4,7 +4,7 @@ namespace wLib.Injection
 {
     public interface IBinderInfo
     {
-        DiContainer Container { get; }
+        IDependencyContainer Container { get; }
 
         Type TargetType { get; }
 

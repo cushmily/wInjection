@@ -5,7 +5,7 @@ using System.Reflection;
 
 namespace wLib.Injection
 {
-    public class DiContainer
+    public class DependencyContainer : IDependencyContainer
     {
         public readonly Dictionary<Type, Type> Types = new Dictionary<Type, Type>();
 
@@ -15,29 +15,13 @@ namespace wLib.Injection
 
         private readonly List<Type> _transientTypes = new List<Type>();
 
-        private static IEnumerable<Type> modules;
+        private readonly List<IModule> _modules = new List<IModule>();
 
         #region Helper
 
-        public DiContainer()
+        public DependencyContainer()
         {
-            if (modules == null)
-            {
-                modules = AppDomain.CurrentDomain.GetAssemblies().SelectMany(x => x.GetTypes())
-                    .Where(x => typeof(IModule).IsAssignableFrom(x) && !x.IsAbstract);
-            }
-
-            foreach (var moduleType in modules)
-            {
-                var constructor = moduleType.GetConstructor(new[] {typeof(DiContainer)});
-                if (constructor != null)
-                {
-                    var moduleInstance = constructor.Invoke(new object[] {this}) as IModule;
-                    moduleInstance?.ModuleBindings();
-                }
-            }
-
-            Bind<DiContainer, DiContainer>(this);
+            Bind<IDependencyContainer, DependencyContainer>(this);
         }
 
         #region Generic Binding
@@ -169,6 +153,15 @@ namespace wLib.Injection
             }
         }
 
+        public IDependencyContainer MountModule(params IModule[] modules)
+        {
+            _modules.AddRange(modules);
+            
+            foreach (var module in modules) { module.RegisterBindings(); }
+
+            return this;
+        }
+
         #endregion
 
         #region Helpers
@@ -211,15 +204,13 @@ namespace wLib.Injection
 
         private object InternalResolve(Type contract, bool createMode = false)
         {
-            Type implementation;
-            if (!Types.TryGetValue(contract, out implementation))
+            if (!Types.TryGetValue(contract, out var implementation))
             {
                 if (createMode) { implementation = contract; }
                 else { throw new ApplicationException("Can't resolve a unregistered type: " + contract); }
             }
 
-            object instance;
-            if (_transientTypes.Contains(contract) || !_singletons.TryGetValue(contract, out instance))
+            if (_transientTypes.Contains(contract) || !_singletons.TryGetValue(contract, out var instance))
             {
                 var constructor = implementation.GetConstructors()[0];
                 var parameterInfos = constructor.GetParameters();
@@ -247,5 +238,21 @@ namespace wLib.Injection
         }
 
         #endregion
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposing) { return; }
+
+            Types.Clear();
+            _memberCaches.Clear();
+            _singletons.Clear();
+            _transientTypes.Clear();
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
     }
 }

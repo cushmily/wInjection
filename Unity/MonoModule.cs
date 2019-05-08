@@ -4,13 +4,15 @@ namespace wLib.Injection
 {
     public abstract class MonoModule : MonoBehaviour, IModule
     {
-        public DiContainer Container { get; private set; }
+        public IDependencyContainer Container { get; private set; }
 
-        public void SetContainer(DiContainer container)
+        public void SetContainer(IDependencyContainer container)
         {
             Container = container;
         }
 
-        public abstract void ModuleBindings();
+        public abstract void RegisterBindings();
+
+        public abstract void Dispose();
     }
 }

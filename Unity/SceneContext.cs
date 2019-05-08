@@ -7,7 +7,7 @@ namespace wLib.Injection
 {
     public class SceneContext : MonoBehaviour, IContext
     {
-        private readonly DiContainer _container = new DiContainer();
+        public IDependencyContainer Container { get; } = new DependencyContainer();
 
         [SerializeField]
         private MonoModule[] _modules;
@@ -21,8 +21,8 @@ namespace wLib.Injection
                     var module = _modules[i];
                     if (module == null) { continue; }
 
-                    module.SetContainer(_container);
-                    module.ModuleBindings();
+                    module.SetContainer(Container);
+                    module.RegisterBindings();
                 }
             }
 
@@ -40,6 +40,8 @@ namespace wLib.Injection
             sw.Stop();
             var ms = sw.ElapsedMilliseconds;
             Debug.LogFormat("Inject scene game object finished. cost : {0} ms. ", ms);
+
+            if (Context.GlobalContext == null) { Context.SetCurrentContext(this); }
         }
 
         public void InjectGameObject(GameObject targetGo)
@@ -56,12 +58,12 @@ namespace wLib.Injection
 
         public void Inject(object obj)
         {
-            _container.Inject(obj);
+            Container.Inject(obj);
         }
 
         public object Create(Type type)
         {
-            return _container.Resolve(type, true);
+            return Container.Resolve(type, true);
         }
 
         public T Create<T>() where T : class
@@ -71,7 +73,7 @@ namespace wLib.Injection
 
         public object Resolve(Type type)
         {
-            return _container.Resolve(type);
+            return Container.Resolve(type);
         }
 
         public T Resolve<T>() where T : class
